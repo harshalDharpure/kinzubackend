@@ -5,14 +5,22 @@ const path = require('path');
 const { spawn } = require('child_process');
 const Recording = require('../models/Recording');
 const auth = require('../middleware/auth');
+const fs = require('fs');
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Configure multer for audio file upload
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads/');
+        cb(null, uploadsDir);
     },
     filename: function (req, file, cb) {
-        cb(null, Date.now() + path.extname(file.originalname));
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
     }
 });
 
@@ -47,6 +55,13 @@ router.post('/audio', auth, upload.single('audio'), async (req, res) => {
         });
 
         pythonProcess.on('close', async (code) => {
+            // Clean up the uploaded file after processing
+            try {
+                fs.unlinkSync(audioPath);
+            } catch (err) {
+                console.error('Error deleting temporary file:', err);
+            }
+
             if (code !== 0) {
                 return res.status(500).json({ error: 'Analysis failed', details: errorData });
             }
@@ -57,7 +72,7 @@ router.post('/audio', auth, upload.single('audio'), async (req, res) => {
                 // Save recording to database
                 const recording = new Recording({
                     user: req.user.id,
-                    audioFile: audioPath,
+                    audioFile: req.file.filename, // Store only the filename
                     transcribedText: result.transcribed_text,
                     analysis: {
                         polarityScore: result.polarity_score,
