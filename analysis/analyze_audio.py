@@ -33,9 +33,24 @@ def sentence_complexity(text):
 
     return avg_sentence_length, conjunction_count, feedback
 
+def output_json(data):
+    """Helper function to output JSON and handle errors"""
+    try:
+        json_str = json.dumps(data)
+        print(json_str)
+        sys.stdout.flush()  # Ensure the output is flushed immediately
+    except Exception as e:
+        error_data = {
+            "error": "Failed to serialize output",
+            "details": str(e)
+        }
+        print(json.dumps(error_data))
+        sys.stdout.flush()
+        sys.exit(1)
+
 def main():
     if len(sys.argv) < 2:
-        print(json.dumps({'error': 'No audio file path provided'}))
+        output_json({"error": "No audio file path provided"})
         sys.exit(1)
 
     audio_file = sys.argv[1]
@@ -72,28 +87,28 @@ def main():
         if os.path.exists(temp_wav_file):
             os.remove(temp_wav_file)
 
-        # Output as JSON
+        # Output as JSON with consistent property names
         result = {
-            "transcribed_text": formatted_text,
-            "polarity_score": polarity,
-            "subjectivity_score": subjectivity,
-            "total_words": total_words,
-            "unique_words": unique_words,
-            "diversity_score": diversity,
-            "diversity_feedback": lex_pattern,
-            "avg_sentence_length": avg_len,
-            "conjunction_count": conj_count,
-            "complexity_feedback": complexity_feedback
+            "transcribedText": formatted_text,
+            "polarityScore": polarity,
+            "subjectivityScore": subjectivity,
+            "totalWords": total_words,
+            "uniqueWords": unique_words,
+            "diversityScore": diversity,
+            "diversityFeedback": lex_pattern,
+            "avgSentenceLength": avg_len,
+            "conjunctionCount": conj_count,
+            "complexityFeedback": complexity_feedback
         }
-        print(json.dumps(result))
+        output_json(result)
     except sr.UnknownValueError:
-        print(json.dumps({'error': 'Speech Recognition could not understand audio.'}))
+        output_json({"error": "Speech Recognition could not understand audio"})
         sys.exit(1)
     except sr.RequestError as e:
-        print(json.dumps({'error': f'Could not request results from Speech Recognition service: {e}'}))
+        output_json({"error": f"Could not request results from Speech Recognition service: {e}"})
         sys.exit(1)
     except Exception as e:
-        print(json.dumps({'error': f'An error occurred: {e}'}))
+        output_json({"error": f"An error occurred: {e}"})
         sys.exit(1)
 
 if __name__ == "__main__":

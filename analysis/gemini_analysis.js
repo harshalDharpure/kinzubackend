@@ -19,14 +19,14 @@ async function generateInsights(analysisData) {
         4. Overall Style: What's the general way of speaking? Any notable patterns?
 
         Analysis Data:
-        - Transcribed Text: ${analysisData.transcribed_text || ''}
-        - Polarity Score: ${analysisData.polarity_score || 0}
-        - Subjectivity Score: ${analysisData.subjectivity_score || 0}
-        - Total Words: ${analysisData.total_words || 0}
-        - Unique Words: ${analysisData.unique_words || 0}
-        - Diversity Score: ${analysisData.diversity_score || 0}
-        - Average Sentence Length: ${analysisData.avg_sentence_length || 0}
-        - Conjunction Count: ${analysisData.conjunction_count || 0}
+        - Transcribed Text: ${analysisData.transcribedText || ''}
+        - Polarity Score: ${analysisData.polarityScore || 0}
+        - Subjectivity Score: ${analysisData.subjectivityScore || 0}
+        - Total Words: ${analysisData.totalWords || 0}
+        - Unique Words: ${analysisData.uniqueWords || 0}
+        - Diversity Score: ${analysisData.diversityScore || 0}
+        - Average Sentence Length: ${analysisData.avgSentenceLength || 0}
+        - Conjunction Count: ${analysisData.conjunctionCount || 0}
 
         Please provide a clear, simple response with these four sections.
         Use everyday language that anyone can understand.
