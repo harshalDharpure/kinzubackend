@@ -7,8 +7,8 @@ const Recording = require('../models/Recording');
 const auth = require('../middleware/auth');
 const fs = require('fs');
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(process.cwd(), 'uploads');
+// Get uploads directory from environment variable or use default
+const uploadsDir = process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads');
 console.log('Uploads directory path:', uploadsDir);
 console.log('Current working directory:', process.cwd());
 
