@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Kinabot Backend
 
 This is the backend server for the Kinabot application, which provides audio analysis and AI-powered communication insights.
@@ -44,3 +45,7 @@ npm run dev
 - `POST /api/auth/login`: User login
 - `POST /api/analyze/audio`: Audio file analysis
 - `POST /api/gemini/analyze`: AI-powered communication insights 
+=======
+# kinzubackend
+Backend Work
+>>>>>>> 12f8c1971c04e15c28e49c4fc3f88455297df6d2
