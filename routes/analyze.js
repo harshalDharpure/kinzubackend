@@ -3,10 +3,10 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const { spawn } = require('child_process');
-// const Recording = require('../models/Recording'); // Commented out for S3 migration
 const auth = require('../middleware/auth');
 const fs = require('fs');
-const { uploadFileToS3, uploadJsonToS3, getJsonFromS3 } = require('../middleware/s3');
+const { uploadFileToS3 } = require('../middleware/s3');
+const { createVoiceData, getVoiceDataByUser } = require('../middleware/dynamodb');
 const AWS = require('aws-sdk');
 
 // Configure multer for in-memory storage
@@ -55,11 +55,12 @@ router.post('/audio', auth, upload.single('audio'), async (req, res) => {
             fs.unlinkSync(tempPath); // Clean up temp file
             try {
                 const result = JSON.parse(analysisData);
-                // Save analysis metadata to S3
-                const s3MetaKey = `audio/${req.user.id}/${uniqueSuffix}.json`;
-                const metadata = {
-                    user: req.user.id,
-                    audioFile: s3AudioKey,
+                // Store voice metadata in DynamoDB
+                const timestamp = new Date().toISOString();
+                const voiceMeta = await createVoiceData({
+                    user_uuid: req.user.id,
+                    s3_key: s3AudioKey,
+                    timestamp,
                     transcribedText: result.transcribedText,
                     analysis: {
                         polarityScore: result.polarityScore,
@@ -72,14 +73,13 @@ router.post('/audio', auth, upload.single('audio'), async (req, res) => {
                         diversityFeedback: result.diversityFeedback,
                         complexityFeedback: result.complexityFeedback
                     },
-                    createdAt: new Date().toISOString()
-                };
-                await uploadJsonToS3(s3MetaKey, metadata);
-                // Return both the analysis results and the S3 key
+                    createdAt: timestamp
+                });
+                // Return both the analysis results and the DynamoDB voice record
                 res.json({
                     ...result,
                     s3AudioKey,
-                    s3MetaKey
+                    voiceMeta
                 });
             } catch (error) {
                 res.status(500).json({ 
@@ -94,31 +94,13 @@ router.post('/audio', auth, upload.single('audio'), async (req, res) => {
     }
 });
 
-// Get user's recordings from S3
+// Get user's recordings from DynamoDB
 router.get('/recordings', auth, async (req, res) => {
     try {
-        const s3 = new AWS.S3();
-        const prefix = `audio/${req.user.id}/`;
-        const params = {
-            Bucket: 'kinabot-audio-storage',
-            Prefix: prefix,
-        };
-        // List all objects in the user's folder
-        const listed = await s3.listObjectsV2(params).promise();
-        // Filter for .json files (metadata)
-        const jsonFiles = listed.Contents.filter(obj => obj.Key.endsWith('.json'));
-        // Fetch and parse each metadata file
-        const recordings = await Promise.all(jsonFiles.map(async (file) => {
-            try {
-                const meta = await getJsonFromS3(file.Key);
-                return { ...meta, s3MetaKey: file.Key };
-            } catch (e) {
-                return null;
-            }
-        }));
-        res.json(recordings.filter(Boolean));
+        const recordings = await getVoiceDataByUser(req.user.id);
+        res.json(recordings);
     } catch (error) {
-        console.error('Error fetching recordings from S3:', error);
+        console.error('Error fetching recordings from DynamoDB:', error);
         res.status(500).json({ error: 'Failed to fetch recordings' });
     }
 });

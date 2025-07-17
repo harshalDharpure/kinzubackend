@@ -3,7 +3,9 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
-const { getJsonFromS3, uploadJsonToS3 } = require('../middleware/s3');
+const { createUser, getUserByEmail } = require('../middleware/dynamodb');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, GetCommand } = require('@aws-sdk/lib-dynamodb');
 
 // Load environment variables
 dotenv.config();
@@ -14,64 +16,88 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
-const USERS_KEY = 'users.json';
+// Health check endpoint for DynamoDB
+router.get('/health', async (req, res) => {
+  try {
+    const REGION = process.env.AWS_REGION || 'us-east-1';
+    const USERS_TABLE = 'Users';
+    const ddbClient = new DynamoDBClient({ region: REGION });
+    const ddbDocClient = DynamoDBDocumentClient.from(ddbClient);
+    // Try to get a non-existent item (should not error if table exists and permissions are correct)
+    await ddbDocClient.send(new GetCommand({ TableName: USERS_TABLE, Key: { user_uuid: 'health-check' } }));
+    res.json({ status: 'ok', message: 'DynamoDB connection successful' });
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({ status: 'error', message: 'DynamoDB connection failed', error: error.message });
+  }
+});
 
 // Signup route
 router.post('/signup', async (req, res) => {
   try {
-    const { email, password, name } = req.body;
-    let users = [];
-    try {
-      users = await getJsonFromS3(USERS_KEY);
-    } catch (e) {
-      users = [];
+    console.log('Signup route hit');
+    console.log('Signup request body:', req.body);
+    const { name, email, password, address, birthday } = req.body;
+    if (!name || !email || !password || !address || !birthday) {
+      console.log('Missing required fields');
+      return res.status(400).json({ message: 'All fields are required' });
     }
     // Check if user already exists
-    if (users.find(u => u.email === email)) {
+    const existingUser = await getUserByEmail(email);
+    if (existingUser) {
+      console.log('Email already in use:', email);
       return res.status(400).json({ message: 'Email already in use' });
     }
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 8);
-    const user = {
-      id: Date.now().toString(),
+    // Create user in DynamoDB
+    const user = await createUser({
+      name,
       email,
       password: hashedPassword,
-      name,
+      address,
+      birthday,
       createdAt: new Date().toISOString(),
-    };
-    users.push(user);
-    await uploadJsonToS3(USERS_KEY, users);
+    });
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.id },
+      { userId: user.user_uuid },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
+    console.log('User created successfully:', user.user_uuid);
     res.status(201).json({
       message: 'User created successfully',
       token,
       user: {
-        id: user.id,
+        id: user.user_uuid,
+        name: user.name,
         email: user.email,
-        name: user.name
+        address: user.address,
+        birthday: user.birthday
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error creating user', error: error.message });
+    console.error('Signup error:', error);
+    // Always return a JSON response, even on error
+    res.status(500).json({ message: 'Error creating user', error: error.message || String(error) });
   }
+});
+
+// Catch-all error handler for uncaught exceptions in this file
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 // Login route
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    let users = [];
-    try {
-      users = await getJsonFromS3(USERS_KEY);
-    } catch (e) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-    const user = users.find(u => u.email === email);
+    // Find user by email in DynamoDB
+    const user = await getUserByEmail(email);
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -81,7 +107,7 @@ router.post('/login', async (req, res) => {
     }
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.id },
+      { userId: user.user_uuid },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -89,9 +115,11 @@ router.post('/login', async (req, res) => {
       message: 'Login successful',
       token,
       user: {
-        id: user.id,
+        id: user.user_uuid,
+        name: user.name,
         email: user.email,
-        name: user.name
+        address: user.address,
+        birthday: user.birthday
       }
     });
   } catch (error) {

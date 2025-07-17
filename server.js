@@ -20,7 +20,7 @@ const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json()); // <-- Ensure this is before any routes
 
 // Routes
 app.use('/api/auth', authRoutes);
