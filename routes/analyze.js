@@ -36,24 +36,22 @@ router.post('/audio', auth, upload.single('audio'), async (req, res) => {
         const tempPath = path.join(__dirname, `temp-${uniqueSuffix}.wav`);
         fs.writeFileSync(tempPath, req.file.buffer);
 
-        // Use Node.js analysis instead of Python
-        const { spawn } = require('child_process');
-        const nodeProcess = spawn('node', ['analysis/analyze_audio.js', tempPath], {
+        const pythonProcess = spawn('python', ['analysis/analyze_audio.py', tempPath], {
             stdio: ['pipe', 'pipe', 'pipe']
         });
 
         let analysisData = '';
         let errorData = '';
 
-        nodeProcess.stdout.on('data', (data) => {
+        pythonProcess.stdout.on('data', (data) => {
             analysisData += data.toString();
         });
 
-        nodeProcess.stderr.on('data', (data) => {
+        pythonProcess.stderr.on('data', (data) => {
             errorData += data.toString();
         });
 
-        nodeProcess.on('close', async (code) => {
+        pythonProcess.on('close', async (code) => {
             fs.unlinkSync(tempPath); // Clean up temp file
             try {
                 const result = JSON.parse(analysisData);
