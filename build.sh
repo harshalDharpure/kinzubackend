@@ -9,8 +9,9 @@ set -e
 # The base image should have up-to-date enough package lists.
 
 # Install system dependencies for a specific Python version
+# We use sudo to grant root permissions for package installation.
 echo "Installing system dependencies for Python 3.11..."
-apt-get install -y ffmpeg python3.11 python3.11-pip python3.11-venv
+sudo apt-get install -y ffmpeg python3.11 python3.11-pip python3.11-venv
 
 # Install Node.js dependencies
 echo "Installing Node.js dependencies..."
