@@ -5,8 +5,8 @@ echo "Starting build process..."
 # Stop on any error
 set -e
 
-# Update package list
-apt-get update
+# We don't run apt-get update because Render's filesystem for this is read-only.
+# The base image should have up-to-date enough package lists.
 
 # Install system dependencies for a specific Python version
 echo "Installing system dependencies for Python 3.11..."
