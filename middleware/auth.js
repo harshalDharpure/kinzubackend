@@ -28,6 +28,12 @@ const auth = (req, res, next) => {
       next();
     } catch (verifyError) {
       console.error('Token verification error:', verifyError);
+      if (verifyError.name === 'TokenExpiredError') {
+        return res.status(401).json({ 
+          message: 'Token has expired, please log in again',
+          error: 'TokenExpiredError' 
+        });
+      }
       res.status(401).json({ 
         message: 'Token verification failed, authorization denied',
         error: process.env.NODE_ENV === 'development' ? verifyError.message : undefined

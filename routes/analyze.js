@@ -38,7 +38,7 @@ router.post('/audio', auth, upload.single('audio'), async (req, res) => {
         // Try Python analysis first, fallback to Node.js
         const tryPythonAnalysis = () => {
             return new Promise((resolve, reject) => {
-                const pythonProcess = spawn('python3', ['analysis/analyze_audio.py', tempPath], {
+                const pythonProcess = spawn('python', ['analysis/analyze_audio.py', tempPath], {
                     stdio: ['pipe', 'pipe', 'pipe']
                 });
 
@@ -171,7 +171,7 @@ router.get('/test', auth, async (req, res) => {
     try {
         // Test Python availability
         const { spawn } = require('child_process');
-        const pythonTest = spawn('python3', ['--version']);
+        const pythonTest = spawn('python', ['--version']);
         
         let pythonVersion = '';
         let pythonError = '';
