@@ -38,7 +38,7 @@ router.post('/audio', auth, upload.single('audio'), async (req, res) => {
         // Try Python analysis first, fallback to Node.js
         const tryPythonAnalysis = () => {
             return new Promise((resolve, reject) => {
-                const pythonProcess = spawn('python', ['analysis/analyze_audio.py', tempPath], {
+                const pythonProcess = spawn('python3.11', ['analysis/analyze_audio.py', tempPath], {
                     stdio: ['pipe', 'pipe', 'pipe']
                 });
 
@@ -171,7 +171,7 @@ router.get('/test', auth, async (req, res) => {
     try {
         // Test Python availability
         const { spawn } = require('child_process');
-        const pythonTest = spawn('python', ['--version']);
+        const pythonTest = spawn('python3.11', ['--version']);
         
         let pythonVersion = '';
         let pythonError = '';
@@ -221,6 +221,37 @@ router.get('/test', auth, async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
+    }
+});
+
+// Test route for Python availability
+router.get('/test-python', (req, res) => {
+    try {
+        // Test Python availability
+        const { spawn } = require('child_process');
+        const pythonTest = spawn('python3.11', ['--version']);
+        
+        let pythonVersion = '';
+        let errorOutput = '';
+
+        pythonTest.stdout.on('data', (data) => {
+            pythonVersion += data.toString();
+        });
+
+        pythonTest.stderr.on('data', (data) => {
+            errorOutput += data.toString();
+        });
+
+        pythonTest.on('close', (code) => {
+            if (code === 0) {
+                res.json({ success: true, version: pythonVersion.trim() });
+            } else {
+                res.status(500).json({ success: false, error: 'Python not found or failed', details: errorOutput });
+            }
+        });
+
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
     }
 });
 
